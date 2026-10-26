@@ -25,11 +25,25 @@ test("an empty token asks nothing upstream", async () => {
 });
 
 test("a quota answer is classified, cached, and token-scoped", async () => {
-	const body = { limits: [ { unit: 3, number: 5, percentage: 78, nextResetTime: 1792997400000 }, { unit: 6, percentage: 64 } ] };
+	// The vendor's real envelope: limits and the plan level live under `data`.
+	const body = {
+		code: 200,
+		success: true,
+		data: {
+			limit: null,
+			limits: [
+				{ type: "TIME_LIMIT", unit: 5, number: 1, usage: 4000, currentValue: 7, remaining: 3993, percentage: 1, nextResetTime: 1795228470977 },
+				{ type: "TOKENS_LIMIT", unit: 3, number: 5, percentage: 59, nextResetTime: 1793002211831 },
+				{ type: "TOKENS_LIMIT", unit: 6, number: 1, percentage: 11, nextResetTime: 1793586870974 }
+			],
+			level: "max"
+		}
+	};
 	const { fetchImpl, calls } = fetchOnce(body);
 	const first = await queryGlmQuota("token-a", { fetchImpl, now: () => 1000 });
 	assert.equal(first.status, "ok");
-	assert.equal(first.body.limits[1].percentage, 64);
+	assert.equal(first.body.limits[1].percentage, 59);
+	assert.equal(first.body.level, "max");
 	// Within the TTL the second answer comes from cache.
 	const second = await queryGlmQuota("token-a", { fetchImpl, now: () => 1000 + 60_000 });
 	assert.equal(second.status, "ok");
