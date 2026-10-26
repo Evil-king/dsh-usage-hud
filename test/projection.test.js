@@ -126,6 +126,18 @@ test("view composes groups with prices and session totals", () => {
 	assert.equal(group.price.source, "preset");
 });
 
+test("a new selection overrides the settled route as the current model", () => {
+	const definition = createUsageHudDefinition({});
+	let state = fold.init();
+	state = fold.apply(state, event("model/selection", { provider: "p1", model: "m1" }));
+	state = fold.apply(state, settlement(1, 1, USAGE));
+	// The user switches the model selector: the pill must follow at once.
+	state = fold.apply(state, event("model/selection", { provider: "p2", model: "m2" }));
+	assert.deepEqual(definition.wire.view(state).current, { provider: "p2", model: "m2" });
+	// ... so the settled p1 group remains folded, just not "current".
+	assert.equal(Object.keys(definition.wire.view(state).groups).length, 1);
+});
+
 test("view falls back to the selection before anything settles", () => {
 	const definition = createUsageHudDefinition({});
 	let state = fold.init();

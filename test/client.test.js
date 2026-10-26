@@ -321,7 +321,7 @@ function textOf(node, out = []) {
 }
 /** The pill/panel/seat text as one string, exactly what a reader scans. */
 function textOfJoined(tree) {
-	return textOf(tree).join("|");
+	return textOf(tree).join("");
 }
 
 test("the pill renders current model, session tokens, and its cost", () => {
@@ -366,6 +366,40 @@ test("a second currency marks the pill with a plus", () => {
 	const { draw } = mount(pill, pillProps(wire));
 	const text = textOfJoined(draw());
 	assert.ok(text.includes("+"), `mixed currencies marked: ${text}`);
+});
+
+test("the pill follows the selected model, not the last served one", () => {
+	const pill = slotComponents.get("conversation.composer.dock").component;
+	// Session tokens belong to p/m, but the selector now points at q/n which has
+	// not served anything yet: the pill shows q/n with zero, not p/m's figures.
+	const wire = wireFixture({ current: { provider: "q", model: "n" } });
+	const { draw } = mount(pill, pillProps(wire));
+	const text = textOfJoined(draw());
+	assert.ok(text.includes("q/n"), `selected model drawn: ${text}`);
+	assert.ok(text.includes("0 tok"), `selected model has no usage yet: ${text}`);
+	assert.ok(!text.includes("¥"), `no cost invented for the selected model: ${text}`);
+});
+
+test("the pill shows the selected model's own tokens when it has served", () => {
+	const pill = slotComponents.get("conversation.composer.dock").component;
+	const wire = wireFixture({ current: { provider: "q", model: "n" } });
+	wire.groups["q\u0000n\u0000offpeak"] = {
+		provider: "q",
+		model: "n",
+		peak: false,
+		uncachedInputTokens: 2000000,
+		cacheReadTokens: 0,
+		cacheWriteTokens: 0,
+		outputTokens: 0,
+		reasoningTokens: 0,
+		attempts: 1,
+		price: { currency: "$", label: "Model N", rates: { miss: 0.5, hit: 0.5, write: 0.5, out: 0.5 }, source: "preset" }
+	};
+	const { draw } = mount(pill, pillProps(wire));
+	const text = textOfJoined(draw());
+	assert.ok(text.includes("Model N"), `selected label drawn: ${text}`);
+	assert.ok(text.includes("2.00M"), `selected model tokens drawn: ${text}`);
+	assert.ok(text.includes("$1.00"), `selected model cost drawn: ${text}`);
 });
 
 test("the open panel names the current model and prices every bucket", () => {
