@@ -13,7 +13,12 @@
   - 当前选中的模型名；
   - 该模型在本会话的 token（含缓存读取 / 写入；还没用过则显示 0）；
   - 该模型的费用（多币种时以 `+` 标记，明细里逐币种合计）。
-- **明细弹层**：点击胶囊展开，逐模型显示
+- **按提供方自适应**：胶囊在用量/费用之外，跟随当前模型所属平台多显示一项：
+  - **GLM**：`78%/64%`——5 小时窗口与每周额度的百分比（悬停/弹层里看各自重置时间）；
+  - **DeepSeek**：`余额 ¥12.34`——账号登录安装可读的账户钱包余额（含赠送余额明细）。
+  - 其他平台不附加，保持简洁。
+
+- **明细弹层**：点击胶囊展开（GLM 显示 5 小时/每周额度进度条与重置时刻，DeepSeek 显示账户/赠送钱包；额度区带手动刷新），逐模型显示
   - 分段：模型名、`当前模型` 标记、高峰 / 空闲时段、请求次数、价格来源（预设 / 自定义）；
   - 逐桶计价行：`token 数量 × 单价/1M`，输出行附「其中推理 N」；
   - 按币种合计、未归因请求说明、未定价模型说明、估算口径声明。
@@ -54,6 +59,9 @@ dsh plugin --profile web add "$HOME/.dsh/profiles/plugins/dsh-usage-hud"
 | DeepSeek 官方价目 | 国内平台（¥）/ 国际平台（$） |
 | 默认币种符号 | 自定义价未写币种时使用 |
 | 自定义单价 | 键 `provider/model` 或裸 `model`；四项常规单价 + 可选四项高峰单价（留空 = 全天一口价），单位为每 1M token |
+| GLM 套餐授权 | 可选。登录 [bigmodel.cn](https://bigmodel.cn) → F12 → Network → 复制任一请求的 `authorization` 请求头完整值粘贴；填写后 GLM 模型显示 5 小时/每周额度，留空则不显示 |
+
+> GLM 额度由宿主代理查询（`bigmodel.cn/api/monitor/usage/quota/limit`，浏览器直连会被 CORS 拦截）；DeepSeek 余额走 harness 账号服务，未登录账号的安装不显示余额。
 
 ## 开发
 
@@ -82,6 +90,7 @@ A DeepSeek Harness (DSH) web plugin that shows **real-time current-model token u
 - **Resident pill** in `conversation.composer.dock`, refreshed on every model-request settlement.
 - **Breakdown dialog**: per-model sections with cache miss/hit/write, output (reasoning subset), `× price/1M` lines, per-currency totals, and provenance.
 - **Exact arithmetic**: a `usageHud` Session projection folds the complete durable event log host-side (retries billed twice, same-slot settlements replace, peak windows stamped at request start in Beijing time), reconciling bucket-for-bucket with the built-in `tokenUsage`; the browser only multiplies rates the Host resolves and ships.
+- **Provider-aware extras**: on a GLM route the pill shows the coding-plan 5-hour and weekly percentages (reset moments in the dialog), on a DeepSeek route the account wallet balance (signed-in installs). Switch a route and the extras switch with it.
 - **Prices out of the box**: the harness model catalog (41 providers, ~1495 models, incl. long-context tiers), DeepSeek official CNY/USD cards for both adapters, and a per-route custom-rate table in settings.
 
 Costs are estimates from list rates and each request's rate window — reference only, not a bill.

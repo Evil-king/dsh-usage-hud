@@ -152,6 +152,14 @@ const sandbox = {
 	window: globalThis.window,
 	document: globalThis.document,
 	console,
+	// The quota/balance hooks arm a TTL tick; a no-op keeps tests deterministic.
+	setInterval: () => 0,
+	clearInterval: () => {},
+	// Default upstream stub: every poll settles as unreachable, which the hooks
+	// carry as an error state. Individual tests override it per URL.
+	fetch: async () => {
+		throw new Error("no fetch stub");
+	},
 	require: (id) => {
 		if (id === "react") return react;
 		if (id === "react-dom") return react_dom;
@@ -468,6 +476,98 @@ test("an override row persists a fully typed table on commit", async () => {
 	const tree = seat(settingsProps(form));
 	const inputs = elements(tree).filter((node) => node.type === "input");
 	assert.ok(inputs.length >= 8, `route inputs drawn: ${inputs.length}`);
+});
+
+
+// ---- provider-specific figures -------------------------------------------------
+
+/** Seed the two account polls with canned upstream answers and settle them. */
+async function seededPill(current, { quota = { status: 200, body: null }, balance = { status: 200, body: null } } = {}) {
+	sandbox.fetch = async (url) => {
+		const answer = url.includes("glm-quota") ? quota : balance;
+		return { status: answer.status, json: async () => answer.body };
+	};
+	const pill = slotComponents.get("conversation.composer.dock").component;
+	const mounted = mount(pill, pillProps(wireFixture({ current })));
+	mounted.draw();
+	for (let turn = 0; turn < 8; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+	return mounted;
+}
+
+test("a GLM model draws the plan percentages beside its figures", async () => {
+	const mounted = await seededPill({ provider: "glm", model: "glm-5.3" }, {
+		quota: {
+			status: 200,
+			body: {
+				status: "ok",
+				limits: [
+					{ unit: 3, number: 5, percentage: 78, nextResetTime: 1792997400000 },
+					{ unit: 6, percentage: 64, nextResetTime: 1793300000000 }
+				]
+			}
+		},
+		balance: { status: 409, body: { status: "unavailable" } }
+	});
+	const text = textOfJoined(mounted.draw());
+	assert.ok(text.includes("78%/64%"), `plan percentages drawn: ${text}`);
+	assert.ok(!text.includes("余额"), `no DeepSeek wallet on a GLM route: ${text}`);
+});
+
+test("the GLM panel names both windows and their reset moments", async () => {
+	const mounted = await seededPill({ provider: "glm", model: "glm-5.3" }, {
+		quota: {
+			status: 200,
+			body: {
+				status: "ok",
+				limits: [
+					{ unit: 3, number: 5, percentage: 78, nextResetTime: 1792997400000 },
+					{ unit: 6, percentage: 64, nextResetTime: 1793300000000 }
+				]
+			}
+		}
+	});
+	const first = mounted.draw();
+	const button = elements(first).find((node) => node.type === "button");
+	button.props.onClick();
+	const text = textOfJoined(mounted.draw());
+	assert.ok(text.includes("GLM 编程套餐额度"), `quota section drawn: ${text}`);
+	assert.ok(text.includes("5 小时额度"), `hourly window named: ${text}`);
+	assert.ok(text.includes("78%"), `hourly share drawn: ${text}`);
+	assert.ok(text.includes("每周额度"), `weekly window named: ${text}`);
+	assert.ok(text.includes("64%"), `weekly share drawn: ${text}`);
+	assert.ok(text.includes("重置"), `reset moment drawn: ${text}`);
+});
+
+test("a DeepSeek model draws the wallet balance beside its figures", async () => {
+	const mounted = await seededPill({ provider: "deepseek-account", model: "deepseek-flash" }, {
+		quota: { status: 409, body: { status: "no-token" } },
+		balance: { status: 200, body: { status: "ok", wallets: [ { currency: "CNY", balance: "12.34" } ], bonusWallets: [] } }
+	});
+	const text = textOfJoined(mounted.draw());
+	assert.ok(text.includes("余额"), `wallet label drawn: ${text}`);
+	assert.ok(text.includes("¥12.34"), `wallet amount drawn: ${text}`);
+	assert.ok(!text.includes("%"), `no GLM plan percentages on a DeepSeek route: ${text}`);
+});
+
+test("the DeepSeek panel names the wallets and their bonuses", async () => {
+	// The store caches a successful answer for its TTL, so this case exercises
+	// the panel's manual refresh: click it, and the bonus row appears.
+	const mounted = await seededPill({ provider: "deepseek-account", model: "deepseek-flash" }, {
+		balance: { status: 200, body: { status: "ok", wallets: [ { currency: "CNY", balance: "12.34" } ], bonusWallets: [ { currency: "CNY", balance: "3.00" } ] } }
+	});
+	const opened = mounted.draw();
+	const trigger = elements(opened).find((node) => node.type === "button");
+	trigger.props.onClick();
+	const panel = mounted.draw();
+	const refresh = elements(panel).find((node) => node.type === "button" && textOf(node).includes("刷新"));
+	assert.ok(refresh !== undefined, "the balance section carries a refresh button");
+	refresh.props.onClick();
+	for (let turn = 0; turn < 8; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+	const text = textOfJoined(mounted.draw());
+	assert.ok(text.includes("DeepSeek 账户余额"), `balance section drawn: ${text}`);
+	assert.ok(text.includes("¥12.34"), `wallet amount drawn: ${text}`);
+	assert.ok(text.includes("赠送余额"), `bonus row drawn: ${text}`);
+	assert.ok(text.includes("¥3.00"), `bonus amount drawn: ${text}`);
 });
 
 test("a settings crash is contained by the boundary", () => {
