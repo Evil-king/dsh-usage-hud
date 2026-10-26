@@ -1,0 +1,66 @@
+{
+  "name": "dsh-usage-hud",
+  "version": "0.1.0",
+  "description": "Real-time current-model token usage and estimated cost for DeepSeek Harness: a composer-dock pill plus per-model breakdown, priced from the harness model catalog.",
+  "license": "MIT",
+  "author": "Erebos <hwq8910@163.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Evil-king/dsh-usage-hud.git"
+  },
+  "homepage": "https://github.com/Evil-king/dsh-usage-hud#readme",
+  "bugs": {
+    "url": "https://github.com/Evil-king/dsh-usage-hud/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "usage",
+    "tokens",
+    "cost"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4",
+    "@earendil-works/pi-ai": "^0.87.1",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "dsh": "^0.1.7-rc.2 || ^0.2.0-rc.1"
+  },
+  "scripts": {
+    "test": "node --test test/projection.test.js test/pricing.test.js test/client.test.js"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/projection.js",
+    "lib/pricing.js",
+    "cordis.patch.yml",
+    "README.md",
+    "icon.svg"
+  ]
+}

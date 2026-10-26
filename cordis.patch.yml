@@ -1,0 +1,9 @@
+# dsh-usage-hud bundle layer.
+#
+# One host row: it folds the durable Session event feed into per-model token
+# buckets, prices each bucket from the harness model catalog (plus user
+# overrides), and publishes the result as the `usageHud` Session projection
+# its browser half renders in the composer statistics strip.
+- insert:
+    - id: usage-hud
+      name: 'dsh-usage-hud'
