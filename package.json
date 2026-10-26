@@ -1,6 +1,6 @@
 {
   "name": "dsh-usage-hud",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Real-time current-model token usage and estimated cost for DeepSeek Harness: a composer-dock pill plus per-model breakdown, priced from the harness model catalog.",
   "icon": "./icon.svg",
   "license": "MIT",

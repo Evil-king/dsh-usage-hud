@@ -128,7 +128,14 @@ function elements(node, out = []) {
 	return out;
 }
 
-const react_dom = { createPortal: (node) => node };
+const react_dom = {
+	// A portal without a container is a render-time crash: the shell unmounts the
+	// pill the moment it is clicked. The stub fails loud so the bundle tests do.
+	createPortal: (node, container) => {
+		if (container === undefined || container === null) throw new Error("createPortal called without a container");
+		return node;
+	}
+};
 
 /** Stand-in for the shell's UI primitives. */
 const primitives = {
