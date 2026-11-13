@@ -572,7 +572,7 @@ test("the DeepSeek panel names the wallets and their bonuses", async () => {
 
 test("the input dock names the workspace folder and its branch", async () => {
 	sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ branch: "main" }) });
-	const dock = slotComponents.get("conversation.input.dock");
+	const dock = slotComponents.get("conversation.input.left");
 	assert.ok(dock !== undefined, "the dock item is registered");
 	const mounted = mount(dock.component, {
 		useProjection: (key) => key === "workingDirectory" ? "/Users/fox/Project/billing_center" : undefined,
