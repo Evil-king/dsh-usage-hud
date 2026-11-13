@@ -6,8 +6,9 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { queryGlmQuota, queryDeepseekBalance, resolveGitBranch } from "../lib/index.js";
+import { queryGlmQuota, queryDeepseekBalance, resolveGitBranch, listBranches, checkoutBranch } from "../lib/index.js";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -117,6 +118,35 @@ test("the branch resolver reads .git/HEAD and walks up from a subdirectory", () 
 		// Not a repository, or not a directory, yields nothing.
 		assert.equal(resolveGitBranch("/"), "");
 		assert.equal(resolveGitBranch("relative/path"), "");
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test("branches list and switch inside a real repository", async () => {
+	const root = mkdtempSync(join(tmpdir(), "usage-hud-branch-"));
+	try {
+		const git = (...args) => execFileSync("git", ["-C", root, ...args], { stdio: "pipe" });
+		git("init", "-q", "-b", "main");
+		git("config", "user.email", "test@example.com");
+		git("config", "user.name", "test");
+		writeFileSync(join(root, "a.txt"), "one\n");
+		git("add", "a.txt");
+		git("commit", "-q", "-m", "one");
+		git("branch", "feature/x");
+
+		const listed = await listBranches(root);
+		assert.deepEqual([...listed.branches].sort(), ["feature/x", "main"]);
+		assert.equal(listed.current, "main");
+
+		const switched = await checkoutBranch(root, "feature/x");
+		assert.equal(switched.ok, true);
+		assert.equal((await listBranches(root)).current, "feature/x");
+
+		// Unknown and hostile names are refused before git ever runs.
+		assert.equal((await checkoutBranch(root, "nope")).ok, false);
+		assert.equal((await checkoutBranch(root, "--upload-pack=evil")).ok, false);
+		assert.equal((await listBranches("/definitely/not/here")).branches.length, 0);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

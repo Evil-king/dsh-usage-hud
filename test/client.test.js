@@ -586,6 +586,24 @@ test("the pill names the workspace folder and its branch", async () => {
 	assert.ok(text.includes("git:main"), `branch drawn: ${text}`);
 });
 
+test("the branch is drawn as its own button", async () => {
+	sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ branch: "main" }) });
+	const wire = wireFixture();
+	const props = {
+		...pillProps(wire),
+		useProjection: (key) => key === "usageHud" ? wire : key === "workingDirectory" ? "/Users/fox/Project/billing_center" : undefined
+	};
+	const pill = slotComponents.get("conversation.composer.dock").component;
+	const mounted = mount(pill, props);
+	mounted.draw();
+	for (let turn = 0; turn < 6; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+	const tree = mounted.draw();
+	// The chip is a control, not plain text: switching branches hangs off it.
+	const chip = elements(tree).find((node) => node.type === "button" && textOf(node).includes("git:main"));
+	assert.ok(chip !== undefined, "the branch renders as a button");
+	assert.equal(chip.props["aria-haspopup"], "menu");
+});
+
 test("a settings crash is contained by the boundary", () => {
 	const seat = seatComponents.get("plugins.bundle.config|dsh-usage-hud").component;
 	const tree = seat({ settings: null, t: makeT() });
