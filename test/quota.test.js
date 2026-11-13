@@ -6,7 +6,10 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { queryGlmQuota, queryDeepseekBalance } from "../lib/index.js";
+import { queryGlmQuota, queryDeepseekBalance, resolveGitBranch } from "../lib/index.js";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function fetchOnce(body, status = 200) {
 	let calls = 0;
@@ -98,4 +101,23 @@ test("a signed-out or failed account seam is unavailable", async () => {
 test("a throwing account seam is an error, not a crash", async () => {
 	const answer = await queryDeepseekBalance({ getBalance: async () => { throw new Error("boom"); } });
 	assert.equal(answer.status, "error");
+});
+
+test("the branch resolver reads .git/HEAD and walks up from a subdirectory", () => {
+	const root = mkdtempSync(join(tmpdir(), "usage-hud-git-"));
+	try {
+		mkdirSync(join(root, ".git"));
+		writeFileSync(join(root, ".git", "HEAD"), "ref: refs/heads/feature/x\n");
+		mkdirSync(join(root, "src", "deep"), { recursive: true });
+		assert.equal(resolveGitBranch(root), "feature/x");
+		assert.equal(resolveGitBranch(join(root, "src", "deep")), "feature/x");
+		// A detached HEAD reports the short commit.
+		writeFileSync(join(root, ".git", "HEAD"), "0123456789abcdef0123456789abcdef01234567\n");
+		assert.equal(resolveGitBranch(root), "01234567");
+		// Not a repository, or not a directory, yields nothing.
+		assert.equal(resolveGitBranch("/"), "");
+		assert.equal(resolveGitBranch("relative/path"), "");
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
 });

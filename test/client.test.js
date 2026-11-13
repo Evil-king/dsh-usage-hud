@@ -570,6 +570,22 @@ test("the DeepSeek panel names the wallets and their bonuses", async () => {
 	assert.ok(text.includes("¥3.00"), `bonus amount drawn: ${text}`);
 });
 
+test("the pill names the workspace folder and its branch", async () => {
+	sandbox.fetch = async () => ({ ok: true, status: 200, json: async () => ({ branch: "main" }) });
+	const pill = slotComponents.get("conversation.composer.dock").component;
+	const wire = wireFixture();
+	const props = {
+		...pillProps(wire),
+		useProjection: (key) => key === "usageHud" ? wire : key === "workingDirectory" ? "/Users/fox/Project/billing_center" : undefined
+	};
+	const mounted = mount(pill, props);
+	mounted.draw();
+	for (let turn = 0; turn < 6; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+	const text = textOfJoined(mounted.draw());
+	assert.ok(text.includes("billing_center"), `folder drawn: ${text}`);
+	assert.ok(text.includes("git:main"), `branch drawn: ${text}`);
+});
+
 test("a settings crash is contained by the boundary", () => {
 	const seat = seatComponents.get("plugins.bundle.config|dsh-usage-hud").component;
 	const tree = seat({ settings: null, t: makeT() });
